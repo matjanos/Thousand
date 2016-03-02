@@ -26,7 +26,7 @@ void wyloguj(int signum){
     struct msgbuf wiadomosc;
     strcpy(wiadomosc.mtext+1,"/lgout");
     wiadomosc.mtext[0]=ptr[0];
-    mtype = 1;
+    wiadomosc.mtype = 1;
     msgsnd(kolejka, (void *) &wiadomosc, sizeof(wiadomosc.mtext), IPC_NOWAIT);
     sleep(1);
     shmctl(shmid,IPC_RMID,0);
