@@ -40,7 +40,7 @@ void init(){
     signal(SIGINT, wyloguj);
     long int i = 1;
     do{
-        shmid = shmget(i++, sizeof(char), 0666 | IPC_EXCL | IPC_CREAT ); //tworzenie unikalnej pamieci wspoldzielone
+        shmid = shmget(i++, sizeof(char), 1000 | IPC_EXCL | IPC_CREAT ); //tworzenie unikalnej pamieci wspoldzielone
     }while (shmid == -1);
     ptr = shmat(shmid, 0, 0);
     kolejka = msgget(KLUCZ, 0);

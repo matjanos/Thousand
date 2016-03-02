@@ -8,6 +8,7 @@
 #define LOGIN 12 //Dlugosc loginu - stala
 #define WIADOMOSC 210 //Maksymalna dlugosc wiadomosci - UWAGA UZYTKOWNIK MOZE WYSŁAĆ MAKSYMALNIE 180
 #define WIADOMOSC_UZYTKOWNIKA 180
+#define KARTY_W_TALII 24
 
 #include <stdio.h>
 #include <string.h>
@@ -35,15 +36,82 @@ struct msgbuf{             //mtype = argument wysylanie() + 3
                         // tymczasowe niezalogowanych uzytkownikow
 };
 
-struct cardStruct{        // value - wartość 
-    long value;           //typy specjalnego przeznaczenia: 1 - wiadomosci od klientow do serwera
-    char name[2];     // 2- z serwera do niepolaczonych uzytkownikow, 3~3+USERS uzytkownikow, 3+USERS~3+USERS*2
-	char color[2];       // tymczasowe niezalogowanych uzytkownikow
+struct cardStruct{
+    short value;           	// value: wartość 
+    char name[3];     		// nazwa: dla 9 pik - "9P"
+	char color[1];      	// kolor: pik - P, karo - K, trefl - T, kier(serce) -  S
 };
 
 struct msgbuf wiadomosc;
 
+struct cardStruct talia[KARTY_W_TALII];
 
+void wylaczserwer(int esig){
+    msgctl(kolejka,IPC_RMID,NULL);
+    exit(1);
+}
+
+struct cardStruct createCard(short value, char* name, char* color){
+	struct cardStruct karta;
+	karta.value = value;
+	strcpy(karta.name, name);
+	strcpy(karta.color, color);
+
+	return karta;
+}
+
+void stworzTalie(){
+	talia[0] = createCard(0, "9P","P");
+	talia[1] = createCard(0, "9K","K");
+	talia[2] = createCard(0, "9T","T");
+	talia[3] = createCard(0, "9S","S");
+
+	talia[4] = createCard(10, "10P","P");
+	talia[5] = createCard(10, "10K","K");
+	talia[6] = createCard(10, "10T","T");
+	talia[7] = createCard(10, "10S","S");
+
+	talia[8] = createCard(2, "JP","P");
+	talia[9] = createCard(2, "JK","K");
+	talia[10] = createCard(2, "JT","T");
+	talia[11] = createCard(2, "JS","S");
+
+	talia[12] = createCard(3, "QP","P");
+	talia[13] = createCard(3, "QK","K");
+	talia[14] = createCard(3, "QT","T");
+	talia[15] = createCard(3, "QS","S");
+
+	talia[16] = createCard(4, "KP","P");
+	talia[17] = createCard(4, "KK","K");
+	talia[18] = createCard(4, "KT","T");
+	talia[19] = createCard(4, "KS","S");
+
+	talia[20] = createCard(11, "AP","P");
+	talia[21] = createCard(11, "AK","K");
+	talia[22] = createCard(11, "AT","T");
+	talia[23] = createCard(11, "AS","S");
+}
+
+
+void init(){
+    memset(zalogowany,0,sizeof(zalogowany[0])*USERS);
+    memset(login, 0, sizeof(login[0][0]) * USERS * LOGIN);
+    memset(send, 0, sizeof(send[0]) * WIADOMOSC);
+    memset(get, 0, sizeof(get[0]) * WIADOMOSC);
+    memset(temp_id,0,sizeof(temp_id[0])*USERS);
+    memset(talia, 0, sizeof(talia[0])*KARTY_W_TALII);
+    stworzTalie();
+    kolejka = msgget(KLUCZ, 1000 | IPC_CREAT |IPC_EXCL);
+    if(kolejka == -1){
+        printf("Blad. Jeden serwer jest juz czynny\n");
+        exit(1);
+    }
+    signal(SIGINT, wylaczserwer);
+    strcpy(login[0],"marek"); //Lista użytkowników serwera
+    strcpy(login[1],"Tomek");
+    strcpy(login[2],"janek");
+    return;
+}
 
 void wysylanie(char id){
     wiadomosc.mtype = id+3;
@@ -91,28 +159,6 @@ void pobieranie(){
 		printf("%s\n",get+1);
 }
 
-void wylaczserwer(int esig){
-    msgctl(kolejka,IPC_RMID,NULL);
-    exit(1);
-}
-
-void init(){
-    memset(zalogowany,0,sizeof(zalogowany[0])*USERS);
-    memset(login, 0, sizeof(login[0][0]) * USERS * LOGIN);
-    memset(send, 0, sizeof(send[0]) * WIADOMOSC);
-    memset(get, 0, sizeof(get[0]) * WIADOMOSC);
-    memset(temp_id,0,sizeof(temp_id[0])*USERS);
-    kolejka = msgget(KLUCZ, 0666 | IPC_CREAT |IPC_EXCL);
-    if(kolejka == -1){
-        printf("Blad. Jeden serwer jest juz czynny\n");
-        exit(1);
-    }
-    signal(SIGINT, wylaczserwer);
-    strcpy(login[0],"marek"); //Lista użytkowników serwera
-    strcpy(login[1],"Tomek");
-    strcpy(login[2],"janek");
-    return;
-}
 
 /*
  * 0 użytkownik pomyślnie wylogowany
