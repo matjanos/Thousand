@@ -54,6 +54,7 @@ void init(){
     msgrcv(kolejka, (void *) &wiadomosc, sizeof(wiadomosc.mtext), 2, 1);
     id = wiadomosc.mtext[0];
     ptr[0] = id;
+    printf("My id %d.\n",id);
 }
 
 

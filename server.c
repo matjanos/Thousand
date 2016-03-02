@@ -5,6 +5,7 @@
 
 #define KLUCZ 1
 #define USERS 3 //Wymagana ilość graczy
+#define WAITING_USERS 10 //Wymagana ilość graczy
 #define LOGIN 12 //Dlugosc loginu - stala
 #define WIADOMOSC 210 //Maksymalna dlugosc wiadomosci - UWAGA UZYTKOWNIK MOZE WYSŁAĆ MAKSYMALNIE 180
 #define WIADOMOSC_UZYTKOWNIKA 180
@@ -27,7 +28,7 @@ unsigned int pelnaSuma[USERS]; //Przechowuje punkty użytkownikow z pełnej rozg
 unsigned int suma[USERS]; //Przechowuje punkty użytkownikow z pojedynczej gry
 char send[WIADOMOSC]; //Wiadomosc do wyslania
 unsigned char get[WIADOMOSC]; //wiadomosc otrzymana
-char temp_id[USERS]; //Tablica tymczasowych identyfiktorów
+char temp_id[WAITING_USERS]; //Tablica tymczasowych identyfiktorów
 
 int kolejka; // id kolejki komunikatów
 int roundRobinToken = 0; // id gracza który jest "na musie"
@@ -134,18 +135,24 @@ void init(){
 	memset(login, 0, sizeof(login[0][0]) * USERS * LOGIN);
 	memset(send, 0, sizeof(send[0]) * WIADOMOSC);
 	memset(get, 0, sizeof(get[0]) * WIADOMOSC);
-	memset(temp_id,0,sizeof(temp_id[0])*USERS);
+	memset(temp_id,0,sizeof(temp_id[0])*WAITING_USERS);
 	memset(talia, 0, sizeof(talia[0])*KARTY_W_TALII);
-	stworzTalie();
 	kolejka = msgget(KLUCZ, 1000 | IPC_CREAT |IPC_EXCL);
 	if(kolejka == -1){
 		printf("Blad. Jeden serwer jest juz czynny\n");
 		exit(1);
 	}
 	signal(SIGINT, wylaczserwer);
-    strcpy(login[0],"marek"); //Lista użytkowników serwera
-    strcpy(login[1],"Tomek");
-    strcpy(login[2],"janek");
+	
+	// ustaw początkową listę graczy
+	int i;
+	for(i=0;i<USERS;i++){
+    	strcpy(login[i],"");
+    	zalogowany[i] = -1;
+    }
+
+	stworzTalie();
+
     return;
 }
 
@@ -159,24 +166,11 @@ void wysylanie(char id){
 /**
  * Przedzielanie tymczasowego identyfikatora na potrzby logowania
  *
- * Tymczasowy identyfikator z zakresu 10~20
- * |
- * |char o wartosci -1
- * ||
- * c
- *
- * Ten co mial porzednio ten identyfikator i  nie zalogowal sie pomyslnie
- * otrzymuje komunikat
- *
- * char o wartosci -2
- * |
- * |char o wartosci -1
- * ||
- *
+ * Tymczasowy ID jest z zakresu {USERS} - {WAITING_USERS+USERS}
  */
  void nowyuser(){
  	unsigned char i;
- 	for(i = 0; i<USERS;i++){
+ 	for(i = 0; i<WAITING_USERS;i++){
  		if(temp_id[i] == 0){
  			send[0] = i+USERS;
  			send[1] = -1;
@@ -185,13 +179,17 @@ void wysylanie(char id){
  			return;
  		}
  	}
+
+	strcpy(send,"Przekroczono ilosc oczekujacych graczy.");
+	wysylanie(-1);
+	printf("Przekroczono ilosc oczekujacych.");
  }
 
 //Pobieranie
  void pobieranie(){
  	msgrcv(kolejka, (void *) &wiadomosc, sizeof(wiadomosc.mtext), 1, 1);
  	memcpy(get,wiadomosc.mtext, sizeof(char)*WIADOMOSC_UZYTKOWNIKA);
- 	printf("%d\n",get[0]);
+ 	printf("!%d\n",get[0]);
  	printf("%s\n",get+1);
  }
 
@@ -201,19 +199,23 @@ void wysylanie(char id){
  * 1 użytkownik nie był zalogowany
  */
  int wylogowywanie(){
- 	if(zalogowany[get[0]]){
- 		zalogowany[get[0]] = 0;
- 		strcpy(send, "  Wylogowano pomyslnie.");
- 		nowyuser();
- 		return 0;
- 	}else
+ 	int i;
+ 	for(i=0; i<USERS;i++){
+	 	if(zalogowany[i]==get[0]){
+	 		zalogowany[i] = -1;
+	 		strcpy(send, "  Wylogowano pomyslnie.");
+	 		nowyuser();
+	 		return 0;
+	 	}
+ 	}
  	strcpy(send, "Blad. Uzytkownik nie byl zalogowany.");
  	return 1;
  }
 
- /*return 1,gdy nie ma użytkownika w bazie
+ /*
  * return 0,gdy pomyślnie zalogowano
- * return 2, gdy jest już zalogowany
+ * return 1, gdy jest już zalogowany
+ * return 2, gdy nie ma już miejsc
  *
  * przykładowa informacja zwrotna pomiślnego logowania:
  *
@@ -224,31 +226,38 @@ void wysylanie(char id){
  * "c Logowani pomyślne."
  */
  int logowanie(){
- 	char Login[12];
+ 	char Login[LOGIN];
  	char* converted_get = (char*)(get);
- 	strncpy(Login, converted_get + 8, 12);
+ 	int clientId = converted_get[0];
+ 	strncpy(Login, converted_get + 8, LOGIN);
+ 	printf("loging %s, clientId=  %d \n", Login, clientId);
  	int i;
- 	for(i = 0;i<USERS;i++){
- 		if(!strcmp(Login,login[i])){
- 			if(!zalogowany[i]) {
- 				send[0] = i;
- 				if(converted_get[0]>=USERS && converted_get[0]<2*USERS)
- 					temp_id[converted_get[0] - USERS] = '\0';
- 				else
- 					wylogowywanie();
- 				send[0] = i;
- 				send[1] = -1;
- 				zalogowany[i] = 1;
- 				strcpy(send+2, "Logowanie pomyslne.");
- 				return 0;
- 			}else{
- 				strcpy(send,"Blad. Jestes juz zalogowany.");
- 				return 2;
- 			}
+ 	int freeSlot = -1;
+
+ 	for(i=0;i<USERS;i++){
+ 		if(zalogowany[i]==-1 && freeSlot == -1){
+ 			freeSlot = i;
  		}
+ 		else if(strcmp(Login,login[i])==0){
+			strcpy(send,"Blad. Jestes juz zalogowany.");
+			return 1;
+		}
  	}
- 	strcpy(send,"Blad. Brak uzytkownika w bazie.");
- 	return 1;
+
+	if(freeSlot==-1){
+		strcpy(send,"Blad. Mamy juz komplet graczy.");
+		return 2;
+	}
+
+	send[0] = clientId;
+	send[1] = -1;
+	zalogowany[freeSlot] = clientId;
+	strcpy(login[freeSlot], Login);
+	strcpy(send+2, "Logowanie pomyslne. Witaj ");
+	strcat(send+2, login[freeSlot]);
+
+	printf("%s at userId %d\n", login[freeSlot], freeSlot);
+	return 0;
  }
 
 
@@ -328,7 +337,8 @@ void wysylanie(char id){
  */
  int wykonywanie(){
  	char* converted_get = (char*)(get);
- 	char rozkaz[6];
+ 	printf("%d \n",get[0]);
+ 	char rozkaz[6];//rozkaz ma zawsze 6
  	strncpy(rozkaz,converted_get,6);
  	if(!strcmp(rozkaz, "/nuser")){
  		nowyuser();
