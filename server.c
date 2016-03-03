@@ -19,7 +19,10 @@ FAZY GRY
 #define ROZDAWANIE_MUSU 2
 #define OCZEKIWANIE_NA_RZUCENIE_KARTY 3
 #define GRA_ZAKONCZONA 4
-
+#define SPADE   "\u2660"
+#define CLUB    "\u2663"
+#define HEART   "\u2665"
+#define DIAMOND "\u2666"
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
@@ -56,7 +59,7 @@ struct msgbuf{             //mtype = argument wysylanie() + 3
 struct cardStruct{
     short value;           	// value: wartość 
     char name[3];     		// nazwa: dla 9,10, Q, K, A, J
-	char color[2];      	// kolor: pik - P, karo - K, trefl - T, kier(serce) -  S
+	char color[4];      	// kolor:
 };
 
 struct msgbuf wiadomosc;
@@ -109,8 +112,8 @@ char* drukujKarty(struct cardStruct karty[], int ile){
 	char* karty_str = malloc(sizeof(char)*WIADOMOSC);
 	strcpy(karty_str,"");
 	for(int i = 0; i< ile; i++){
-		char line[10];
-		sprintf(line, "%d) %s - %s\n", i, karty[i].name, karty[i].color);
+		char line[20];
+		sprintf(line, "%d) %s %s \n", i, karty[i].name, karty[i].color);
 		strcat(karty_str,line);
 	}
 
@@ -118,35 +121,35 @@ char* drukujKarty(struct cardStruct karty[], int ile){
 }
 
 void stworzTalie(){
-	talia[0] = createCard(0, "9","P");
-	talia[1] = createCard(0, "9","K");
-	talia[2] = createCard(0, "9","T");
-	talia[3] = createCard(0, "9","S");
+	talia[0] = createCard(0, "9",SPADE);
+	talia[1] = createCard(0, "9",DIAMOND);
+	talia[2] = createCard(0, "9",CLUB);
+	talia[3] = createCard(0, "9",HEART);
 
-	talia[4] = createCard(10, "10","P");
-	talia[5] = createCard(10, "10","K");
-	talia[6] = createCard(10, "10","T");
-	talia[7] = createCard(10, "10","S");
+	talia[4] = createCard(10, "10",SPADE);
+	talia[5] = createCard(10, "10",DIAMOND);
+	talia[6] = createCard(10, "10",CLUB);
+	talia[7] = createCard(10, "10",HEART);
 
-	talia[8] = createCard(2, "J","P");
-	talia[9] = createCard(2, "J","K");
-	talia[10] = createCard(2, "J","T");
-	talia[11] = createCard(2, "J","S");
+	talia[8] = createCard(2, "J",SPADE);
+	talia[9] = createCard(2, "J",DIAMOND);
+	talia[10] = createCard(2, "J",CLUB);
+	talia[11] = createCard(2, "J",HEART);
 
-	talia[12] = createCard(3, "Q","P");
-	talia[13] = createCard(3, "Q","K");
-	talia[14] = createCard(3, "Q","T");
-	talia[15] = createCard(3, "Q","S");
+	talia[12] = createCard(3, "Q",SPADE);
+	talia[13] = createCard(3, "Q",DIAMOND);
+	talia[14] = createCard(3, "Q",CLUB);
+	talia[15] = createCard(3, "Q",HEART);
 
-	talia[16] = createCard(4, "K","P");
-	talia[17] = createCard(4, "K","K");
-	talia[18] = createCard(4, "K","T");
-	talia[19] = createCard(4, "K","S");
+	talia[16] = createCard(4, "K",SPADE);
+	talia[17] = createCard(4, "K",DIAMOND);
+	talia[18] = createCard(4, "K",CLUB);
+	talia[19] = createCard(4, "K",HEART);
 
-	talia[20] = createCard(11, "A","P");
-	talia[21] = createCard(11, "A","K");
-	talia[22] = createCard(11, "A","T");
-	talia[23] = createCard(11, "A","S");
+	talia[20] = createCard(11, "A",SPADE);
+	talia[21] = createCard(11, "A",DIAMOND);
+	talia[22] = createCard(11, "A",CLUB);
+	talia[23] = createCard(11, "A",HEART);
 
 	printf("%s",drukujKarty(talia,KARTY_W_TALII));
 }
@@ -569,10 +572,6 @@ void oddajkarte(){
 		else if (!strcmp(rozkaz, "/oddaj")) {
 			oddajkarte();
 	 		return wiadomoscuser("",zalogowany[0]);
-	 	} else if (!strcmp(rozkaz, "/pasuj")) {
-	 		pasuj();
-	 		wiadomoscwszyscy("");
-	 		return 0;
 	 	}
  	}
 
