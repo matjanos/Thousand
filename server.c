@@ -497,9 +497,14 @@ int maxbet(){
 
     	dodajKarty(reka[turnToken],6,mus,3);
     	wiadomoscuser(drukujKarty(reka[turnToken],9),zalogowany[turnToken]);
-    	wiadomoscuser("Aby wydać karte wpisz /oddaj [user] [nrkarty], np: /oddaj adam 7",zalogowany[turnToken]);
+    	wiadomoscuser("Aby wydać karte wpisz /oddaj [nrkarty] [user], np: /oddaj 7 adam",zalogowany[turnToken]);
  	}
  }
+
+void oddajkarte(){
+
+}
+
 
 /**
  * Return 0 jeśli nie musi wysyłać informacji zwrotnej
@@ -562,7 +567,7 @@ int maxbet(){
 			return 0;
 		}
 		else if (!strcmp(rozkaz, "/oddaj")) {
-			podbijStawke();
+			oddajkarte();
 	 		return wiadomoscuser("",zalogowany[0]);
 	 	} else if (!strcmp(rozkaz, "/pasuj")) {
 	 		pasuj();
