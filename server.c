@@ -31,16 +31,18 @@ FAZY GRY
 #include <signal.h>
 
 
-char zalogowany[USERS]; //1 jesli uzytkownik jest zalogowany 0 jewli nie, nr w tablicy to identyfikator użytkownika
+char zalogowany[USERS]; //jesli uzytkownik nie jest zalogowany 0;  jeśli jest, nr w tablicy to identyfikator użytkownika, a wartosc to nr procesu.
 char login[USERS][LOGIN]; //Przechowuje nazwy użytkowników, nr w tablicy to identyfikator użytkownika
 unsigned int pelnaSuma[USERS]; //Przechowuje punkty użytkownikow z pełnej rozgrywki (do 1000)
 unsigned int suma[USERS]; //Przechowuje punkty użytkownikow z pojedynczej gry
+unsigned int licytacja[USERS]; // Stawki podczas licytacji
 char send[WIADOMOSC]; //Wiadomosc do wyslania
 unsigned char get[WIADOMOSC]; //wiadomosc otrzymana
 char temp_id[WAITING_USERS]; //Tablica tymczasowych identyfiktorów
 
 int kolejka; // id kolejki komunikatów
 
+int currentBet = 0; // aktualny mus - rozmiar
 int musToken = 0; // id gracza który jest "na musie"
 int turnToken = 0; // id gracza na którego kartę czekam
 int fazaGry = OCZEKIWANIE_NA_GRACZY;
@@ -92,6 +94,15 @@ void shuffle(struct cardStruct *array, size_t n)
 			array[i] = t;
 		}
 	}
+}
+//gracz jak jest, -1 jak nie istnieje
+int idGracza(int idProcesu){
+	for (int i = 0; i < USERS; ++i)
+	{
+		if(zalogowany[i]==idProcesu)
+			return i;
+	}
+	return -1;
 }
 
 void stworzTalie(){
@@ -163,9 +174,31 @@ void init(){
 void wysylanie(char id){
 	wiadomosc.mtype = id+3;
 	send[WIADOMOSC-1] = '\0';
+	// printf("Wysylam '%s' do %ld\n",send, wiadomosc.mtype);
 	memcpy(wiadomosc.mtext,send, sizeof(send));
 	msgsnd(kolejka, (void *) &wiadomosc, sizeof(wiadomosc.mtext), IPC_NOWAIT);
 }
+
+/**
+ * return 0 wysłano wiadomosc
+ */
+
+ int wiadomoscuser(char* wiadomosc, int idGracza){
+ 	strcpy(send,wiadomosc);
+	wysylanie(idGracza);
+	return 0;
+ }
+
+ void wiadomoscwszyscy(char* wiadomosc){
+ 	int i;
+ 	strcpy(send,wiadomosc);
+
+ 	for (i = 0; i<USERS;i++){
+ 		if(zalogowany[i]){
+ 			wysylanie(zalogowany[i]);
+ 		}
+ 	}
+ }
 
 /**
  * Przedzielanie tymczasowego identyfikatora na potrzby logowania
@@ -264,6 +297,14 @@ int kompletGraczy(){
  	}
  	printf("\n---------\n");
  	printf("Obowiązkowy mus: %s\n",login[musToken]);
+
+ 	licytacja[musToken] =100;
+
+ 	turnToken = musToken+1;
+ 	char message[WIADOMOSC];
+ 	strcpy(message,"Rozpoczynamy licytacje. Teraz: ");
+ 	strcat(message,login[turnToken]);
+ 	wiadomoscwszyscy(message);
  }
 
  /*
@@ -338,55 +379,97 @@ int kompletGraczy(){
  	}
  }
 
-/**
- * return 0 wysłano wiadomosc
- * return 1 brak takiego uzytkownika
- * return 2 uzytkownik niedostepny
- */
+int incrementTurn(){
+	do{
+		turnToken = (turnToken+1)%USERS;
+		printf("turn %d\n", licytacja[turnToken]);
+	}
+	while(licytacja[turnToken]==-1);
 
- int wiadomoscuser(){
- 	char Login[12];
- 	strcpy(Login,login[get[0]]);
- 	char dLogin[12];
- 	int i = 0;
- 	do{
- 		dLogin[i] = *(get+strlen(Login)+i+3)==' '?0:*(get+strlen(Login)+i+3);
- 		i++;
- 	}while (dLogin[i-1]);
+	return turnToken;
+}
+
+int maxbet(){
+	int max = 0;
+	for (int i = 0; i < USERS; ++i)
+	{
+		if(licytacja[i] != -1 && licytacja[i]>max)
+			max = licytacja[i];
+	}
+	printf("maxbet - %d\n", max);
+	return max;
+}
+
+ void podbijStawke(){
+	char stawka[3];
  	char* converted_get = (char*)(get);
- 	for(i = 0; i<USERS;i++){
- 		if(!strcmp(dLogin,login[i])){
- 			if(zalogowany[i]){
- 				strcpy(send,Login);
- 				strcat(send,": ");
- 				strcat(send,converted_get + strlen(dLogin)+strlen(Login)+4);
- 				wysylanie(i);
- 				return 0;
- 			} else {
- 				strcpy(send,"Blad. ");
- 				strcat(send,dLogin);
- 				strcat(send, " jest niedostepny.");
- 				return 2;
- 			}
- 		}
+ 	int clientId = converted_get[0];
+ 	strncpy(stawka, converted_get + 8, 3);
+
+ 	int stawka_int = atoi(stawka);
+ 	int min_stawka = maxbet()+10;//nie możemy skakać z licytacją co 1, ale co 10.
+ 	if(stawka_int==0){
+ 		wiadomoscuser("To blad argumentu. To nie jest liczba lub grasz 0.",clientId);
+ 		return;
+ 	}else if(stawka_int<min_stawka){
+ 		char msg[WIADOMOSC];
+	 	strcpy(msg,"Za malo. Minimalnie daj ");
+	 	char min_stawka_str[3];
+	 	sprintf(min_stawka_str, "%d", min_stawka);
+	 	strcat(msg,min_stawka_str);
+	 	strcat(msg,". Jak chcesz pasowac to wpisz '/pasuj'");
+ 		wiadomoscuser(msg, clientId);
+ 		return;
  	}
- 	strcpy(send,"Blad. Brak takiego uzytkownika.");
- 	return 1;
+ 	else{
+ 		licytacja[idGracza(clientId)] = stawka_int;
+ 		char message[WIADOMOSC];
+	 	strcpy(message,"Gracz ");
+	 	strcat(message,login[turnToken]);
+	 	strcat(message," gra ");
+	 	strcat(message, stawka);
+	 	strcat(message, ". Teraz licytuje ");
+	 	strcat(message, login[incrementTurn()]);
+	 	wiadomoscwszyscy(message);
+ 	}
+
  }
 
- void wiadomoscwszyscy(){
- 	char* converted_get = (char*)(get);
- 	int i;
- 	char Login[12];
- 	strcpy(Login,login[get[0]]);
- 	strcpy(send,"Globalnie ");
- 	strcat(send,Login);
- 	strcat(send,": ");
- 	strcat(send,strlen(Login)+3+converted_get);
- 	for (i = 0; i<USERS;i++){
- 		if(zalogowany[i]){
- 			wysylanie(i);
- 		}
+ int iluPasuje(){
+ 	int ilu =0;
+ 	for (int i = 0; i < USERS; ++i)
+ 	{
+ 		if(licytacja[i]==-1)
+ 			ilu++;
+ 	}
+
+ 	return ilu;
+ }
+
+ void pasuj(){
+ 	int id =idGracza(get[0]);
+ 	licytacja[id] = -1;
+ 	
+ 	char message[WIADOMOSC];
+ 	strcpy(message,"Gracz ");
+ 	strcat(message,login[turnToken]);
+ 	strcat(message," pasuje.");
+ 	strcat(message, "Teraz licytuje ");
+ 	strcat(message, login[incrementTurn()]);
+ 	wiadomoscwszyscy(message);
+
+ 	if(iluPasuje()==USERS-1)
+ 	{
+ 		fazaGry = ROZDAWANIE_MUSU;
+ 		char msg[WIADOMOSC];
+ 		strcpy(msg,"Okej! Mus bierze ");
+ 		strcat(msg, login[turnToken]);
+ 		strcat(msg," i gra za ");
+ 		char maxbet[3];
+ 		sprintf(maxbet, "%d", licytacja[turnToken]);
+ 		strcat(msg,maxbet);
+ 		strcat(msg, ". Teraz rozdaje po karcie.");
+ 		wiadomoscwszyscy(msg);
  	}
  }
 
@@ -420,28 +503,38 @@ int kompletGraczy(){
 	 	}
 	}
 
-
+	printf("faza gry: %d \n", fazaGry);
  	if(fazaGry==OCZEKIWANIE_NA_GRACZY){
 
 	 	if (!strcmp(rozkaz, "/login")) {
 	 		logowanie();
-	 		return 1;
+	 		return 0;
 	 	} else if (!strcmp(rozkaz, "/lgout")) {
 	 		wylogowywanie();
 	 		return 1;
-	 	} else if (!strcmp(rozkaz, "/ulist")) {
-	 		listauzytkownikow();
-	 		return 1;
-	 	}
+	 	} 
 	}
 	else if(fazaGry==LICYTACJA){
-		if (!strcmp(rozkaz, "/muser")) {
-	 		return wiadomoscuser();
-	 	} else if (!strcmp(rozkaz, "/msall")) {
-	 		wiadomoscwszyscy();
+		printf("%d - turn: %d\n", converted_get[0],zalogowany[turnToken]);
+		if(converted_get[0]!=zalogowany[turnToken]){
+			wiadomoscuser("To nie Twoja kolej. Poczekaj.",converted_get[0]);
+			return 0;
+		}
+		else if (!strcmp(rozkaz, "/riseb")) {
+			podbijStawke();
+	 		return wiadomoscuser("",zalogowany[0]);
+	 	} else if (!strcmp(rozkaz, "/pasuj")) {
+	 		pasuj();
+	 		wiadomoscwszyscy("");
 	 		return 0;
 	 	}
  	}
+
+ 	// niezależne od fazy
+ 	if (!strcmp(rozkaz, "/ulist")) {
+		listauzytkownikow();
+		return 1;
+	}
 
  	strcpy(send,"Blad. Polecenie niepoprawne.");
  	return 1;
