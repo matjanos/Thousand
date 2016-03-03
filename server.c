@@ -56,10 +56,7 @@ struct msgbuf wiadomosc;
 
 struct cardStruct talia[KARTY_W_TALII];
 
-struct cardStruct reka1[(KARTY_W_TALII-3)/USERS]; // karty na ręce gracza 1
-struct cardStruct reka2[(KARTY_W_TALII-3)/USERS]; // karty na ręce gracza 2
-struct cardStruct reka3[(KARTY_W_TALII-3)/USERS]; // karty na ręce gracza 3
-
+struct cardStruct reka[USERS][(KARTY_W_TALII-3)/USERS]; // karty na ręce graczy
 
 void wylaczserwer(int esig){
 	msgctl(kolejka,IPC_RMID,NULL);
