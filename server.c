@@ -58,7 +58,7 @@ struct msgbuf{             //mtype = argument wysylanie() + 3
 
 struct cardStruct{
     short value;           	// value: wartość 
-    char name[3];     		// nazwa: dla 9,10, Q, K, A, J
+    char name[3];     		// nazwa: dla 9, 10, Q, K, A, J
 	char color[4];      	// kolor:
 };
 
@@ -66,7 +66,7 @@ struct msgbuf wiadomosc;
 
 struct cardStruct talia[KARTY_W_TALII];
 
-struct cardStruct reka[USERS][9]; // karty na ręce graczy, 9 bo swoje po rozdaniu + mus
+struct cardStruct reka[USERS][10]; // karty na ręce graczy, 10 bo swoje po rozdaniu + mus
 struct cardStruct mus[3]; // karty na musie
 
 void wylaczserwer(int esig){
@@ -498,14 +498,79 @@ int maxbet(){
     		wiadomoscwszyscy(drukujKarty(mus,3));
     	}
 
-    	dodajKarty(reka[turnToken],6,mus,3);
-    	wiadomoscuser(drukujKarty(reka[turnToken],9),zalogowany[turnToken]);
-    	wiadomoscuser("Aby wydać karte wpisz /oddaj [nrkarty] [user], np: /oddaj 7 adam",zalogowany[turnToken]);
+    	dodajKarty(reka[turnToken],7,mus,3);
+    	wiadomoscuser(drukujKarty(reka[turnToken],10),zalogowany[turnToken]);
+    	wiadomoscuser("Aby wydać karte wpisz /oddaj [nrkarty] [user], np: /oddaj 7 adam, lub /ulist aby zobaczyc graczy",zalogowany[turnToken]);
  	}
  }
 
-void oddajkarte(){
+int IdGraczaPoLoginie(char* userLogin)
+{
+	for (int i = 0; i < USERS; ++i)
+	{
+		if(!strcmp(userLogin,login[i]))
+			return i;
+	}
+	return -1;
+}
 
+void shortenArray(struct cardStruct* cards, int size){
+	int i=0;
+	int j=size-1;
+	while(i<j){
+		while(strcmp(cards[i].name,"")) i++;
+		while(!strcmp(cards[j].name,"")) j--;
+		if(i<j){
+			memcpy(cards+i,cards+j, sizeof(cards[j]));
+			strcpy (cards[j].name,"");
+			strcpy (cards[j].color,"");
+			cards[j].value=0;
+			i++;
+			j--;
+		}
+	}
+}
+int iloscKart(struct cardStruct* cards, int size){
+	int c = 0;
+	for (int i = 0; i < size; ++i)
+	{
+		if(strcmp(cards[i].name,"")){
+			c++;
+		}
+	}
+	return c;
+}
+
+void oddajkarte(){
+	char karta[1];
+	char user[LOGIN];
+ 	char* converted_get = (char*)(get);
+ 	strncpy(karta, converted_get + 8, 1);
+ 	strncpy(user, converted_get + 10, LOGIN);
+ 	int karta_int = atoi(karta);
+ 	int graczId = IdGraczaPoLoginie(user);
+ 	if(graczId==-1 || graczId==turnToken){
+ 		wiadomoscuser("Nie ma takiego gracza. Sprobuj ponownie.",zalogowany[turnToken]);
+ 		return;
+ 	}
+
+ 	memcpy(reka[graczId] + 7, reka[turnToken]+karta_int, sizeof(reka[turnToken][karta_int]));
+
+ 	wiadomoscuser("Dostales karte. Twoj obecny zestaw:",zalogowany[graczId]);
+ 	wiadomoscuser(drukujKarty(reka[graczId],8),zalogowany[graczId]);
+
+ 	strcpy (reka[turnToken][karta_int].name,"");
+ 	strcpy (reka[turnToken][karta_int].color,"");
+ 	reka[turnToken][karta_int].value = 0;
+
+ 	wiadomoscuser("Oddales karte. Wybierz kolejna:",zalogowany[turnToken]);
+ 	wiadomoscuser(drukujKarty(reka[turnToken],10),zalogowany[turnToken]);
+ 	if(iloscKart(reka[turnToken],10)==8){
+ 		shortenArray(reka[turnToken],10);
+ 		wiadomoscwszyscy("Rozdano!");
+ 		wiadomoscuser("Twój obecny zestaw.",zalogowany[turnToken]);
+ 		wiadomoscuser(drukujKarty(reka[turnToken],8),zalogowany[turnToken]);
+ 	}
 }
 
 
@@ -571,7 +636,7 @@ void oddajkarte(){
 		}
 		else if (!strcmp(rozkaz, "/oddaj")) {
 			oddajkarte();
-	 		return wiadomoscuser("",zalogowany[0]);
+	 		return 0;
 	 	}
  	}
 
