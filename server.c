@@ -19,6 +19,7 @@ FAZY GRY
 #define ROZDAWANIE_MUSU 2
 #define OCZEKIWANIE_NA_RZUCENIE_KARTY 3
 #define GRA_ZAKONCZONA 4
+
 #define SPADE   "\u2660"
 #define CLUB    "\u2663"
 #define HEART   "\u2665"
@@ -570,6 +571,11 @@ void oddajkarte(){
  		wiadomoscwszyscy("Rozdano!");
  		wiadomoscuser("Twój obecny zestaw.",zalogowany[turnToken]);
  		wiadomoscuser(drukujKarty(reka[turnToken],8),zalogowany[turnToken]);
+ 		fazaGry = OCZEKIWANIE_NA_RZUCENIE_KARTY;
+ 		char msg[WIADOMOSC];
+ 		strcpy(msg,"Zaczyna ");
+ 		strcat(msg,login[turnToken]);
+ 		wiadomoscwszyscy(msg);
  	}
 }
 
@@ -632,6 +638,16 @@ void oddajkarte(){
 
 		if(converted_get[0]!=zalogowany[turnToken]){
 			wiadomoscuser("Trwa rozdawanie po jednej karcie. Poczekaj.",converted_get[0]);
+			return 0;
+		}
+		else if (!strcmp(rozkaz, "/oddaj")) {
+			oddajkarte();
+	 		return 0;
+	 	}
+ 	}else if(fazaGry==OCZEKIWANIE_NA_RZUCENIE_KARTY){
+
+		if(converted_get[0]!=zalogowany[turnToken]){
+			wiadomoscuser("To nie Twoja kolej. Poczekaj!",converted_get[0]);
 			return 0;
 		}
 		else if (!strcmp(rozkaz, "/oddaj")) {
