@@ -7,8 +7,8 @@
 #define USERS 3 //Wymagana ilość graczy
 #define WAITING_USERS 10 //Wymagana ilość graczy
 #define LOGIN 12 //Dlugosc loginu - stala
-#define WIADOMOSC 210 //Maksymalna dlugosc wiadomosci - UWAGA UZYTKOWNIK MOZE WYSŁAĆ MAKSYMALNIE 180
-#define WIADOMOSC_UZYTKOWNIKA 180
+#define WIADOMOSC 510 //Maksymalna dlugosc wiadomosci - UWAGA UZYTKOWNIK MOZE WYSŁAĆ MAKSYMALNIE 180
+#define WIADOMOSC_UZYTKOWNIKA 480
 #define KARTY_W_TALII 24
 
 /*
@@ -105,6 +105,18 @@ int idGracza(int idProcesu){
 	return -1;
 }
 
+char* drukujKarty(struct cardStruct karty[], int ile){
+	char* karty_str = malloc(sizeof(char)*WIADOMOSC);
+	strcpy(karty_str,"");
+	for(int i = 0; i< ile; i++){
+		char line[10];
+		sprintf(line, "%d) %s - %s\n", i, karty[i].name, karty[i].color);
+		strcat(karty_str,line);
+	}
+
+	return karty_str;
+}
+
 void stworzTalie(){
 	talia[0] = createCard(0, "9","P");
 	talia[1] = createCard(0, "9","K");
@@ -136,9 +148,7 @@ void stworzTalie(){
 	talia[22] = createCard(11, "A","T");
 	talia[23] = createCard(11, "A","S");
 
-	for(int i = 0; i< KARTY_W_TALII; i++){
-		printf("%s - %s - %d\n", talia[i].name, talia[i].color, talia[i].value);
-	}
+	printf("%s",drukujKarty(talia,KARTY_W_TALII));
 }
 
 
@@ -256,7 +266,6 @@ int kompletGraczy(){
  	return 1;
  }
 
-
  void noweRozdanie(){
  	shuffle(talia, KARTY_W_TALII);
 
@@ -289,6 +298,8 @@ int kompletGraczy(){
  			printf("%s-%s ",reka[z][i].name, reka[z][i].color);
  		}
  		printf("\n\n");
+ 		wiadomoscuser("Twoje karty:",zalogowany[z]);
+ 		wiadomoscuser(drukujKarty(reka[z],(KARTY_W_TALII-3)/USERS),zalogowany[z]);
  	}
 
  	printf("mus:\n");
@@ -362,7 +373,7 @@ int kompletGraczy(){
 	return 0;
  }
 
-/*
+ /*
  *Zwraca listę zalogowanych uzytkownikow
  *
  *przykładowa wiadomość zwrotna:
@@ -470,6 +481,14 @@ int maxbet(){
  		strcat(msg,maxbet);
  		strcat(msg, ". Teraz rozdaje po karcie.");
  		wiadomoscwszyscy(msg);
+ 		if(licytacja[turnToken]==100){
+    		wiadomoscuser("Mus:",zalogowany[turnToken]);
+    		wiadomoscuser(drukujKarty(mus,3),zalogowany[turnToken]);
+    	}
+    	else{
+    		wiadomoscwszyscy("Mus:");
+    		wiadomoscwszyscy(drukujKarty(mus,3));
+    	}
  	}
  }
 
