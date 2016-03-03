@@ -63,7 +63,7 @@ struct msgbuf wiadomosc;
 
 struct cardStruct talia[KARTY_W_TALII];
 
-struct cardStruct reka[USERS][(KARTY_W_TALII)/USERS]; // karty na ręce graczy
+struct cardStruct reka[USERS][9]; // karty na ręce graczy, 9 bo swoje po rozdaniu + mus
 struct cardStruct mus[3]; // karty na musie
 
 void wylaczserwer(int esig){
@@ -373,6 +373,11 @@ int kompletGraczy(){
 	return 0;
  }
 
+void dodajKarty(struct cardStruct* karty, int currentSize, struct cardStruct* dodane, int newSize){
+	memcpy(karty + currentSize, dodane, newSize * sizeof(dodane[0]));
+}
+
+
  /*
  *Zwraca listę zalogowanych uzytkownikow
  *
@@ -469,7 +474,7 @@ int maxbet(){
  	strcat(message, login[incrementTurn()]);
  	wiadomoscwszyscy(message);
 
- 	if(iluPasuje()==USERS-1)
+ 	if(iluPasuje()==USERS-1)//tylko jeden gracz nie pasował - rozpoczynamy
  	{
  		fazaGry = ROZDAWANIE_MUSU;
  		char msg[WIADOMOSC];
@@ -489,6 +494,10 @@ int maxbet(){
     		wiadomoscwszyscy("Mus:");
     		wiadomoscwszyscy(drukujKarty(mus,3));
     	}
+
+    	dodajKarty(reka[turnToken],6,mus,3);
+    	wiadomoscuser(drukujKarty(reka[turnToken],9),zalogowany[turnToken]);
+    	wiadomoscuser("Aby wydać karte wpisz /oddaj [user] [nrkarty], np: /oddaj adam 7",zalogowany[turnToken]);
  	}
  }
 
@@ -534,12 +543,25 @@ int maxbet(){
 	 	} 
 	}
 	else if(fazaGry==LICYTACJA){
-		printf("%d - turn: %d\n", converted_get[0],zalogowany[turnToken]);
 		if(converted_get[0]!=zalogowany[turnToken]){
 			wiadomoscuser("To nie Twoja kolej. Poczekaj.",converted_get[0]);
 			return 0;
 		}
 		else if (!strcmp(rozkaz, "/riseb")) {
+			podbijStawke();
+	 		return wiadomoscuser("",zalogowany[0]);
+	 	} else if (!strcmp(rozkaz, "/pasuj")) {
+	 		pasuj();
+	 		wiadomoscwszyscy("");
+	 		return 0;
+	 	}
+ 	}else if(fazaGry==ROZDAWANIE_MUSU){
+
+		if(converted_get[0]!=zalogowany[turnToken]){
+			wiadomoscuser("Trwa rozdawanie po jednej karcie. Poczekaj.",converted_get[0]);
+			return 0;
+		}
+		else if (!strcmp(rozkaz, "/oddaj")) {
 			podbijStawke();
 	 		return wiadomoscuser("",zalogowany[0]);
 	 	} else if (!strcmp(rozkaz, "/pasuj")) {
