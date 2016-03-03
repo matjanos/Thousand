@@ -11,6 +11,15 @@
 #define WIADOMOSC_UZYTKOWNIKA 180
 #define KARTY_W_TALII 24
 
+/*
+FAZY GRY
+*/
+#define OCZEKIWANIE_NA_GRACZY 0
+#define LICYTACJA 1
+#define ROZDAWANIE_MUSU 2
+#define OCZEKIWANIE_NA_RZUCENIE_KARTY 3
+#define GRA_ZAKONCZONA 4
+
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
@@ -31,14 +40,10 @@ unsigned char get[WIADOMOSC]; //wiadomosc otrzymana
 char temp_id[WAITING_USERS]; //Tablica tymczasowych identyfiktorów
 
 int kolejka; // id kolejki komunikatów
-int roundRobinToken = 0; // id gracza który jest "na musie"
-int fazaGry = 0; // Faza gry:
-				// 0 - oczekiwanie na graczy.
-				// 1 - wszyscy gracze gotowi
-				// 2 - karty rozdane
-				// 3 - oczekiwanie na graczy.
-				// 4 - oczekiwanie na graczy.
-				// 5 - oczekiwanie na graczy.
+
+int musToken = 0; // id gracza który jest "na musie"
+int turnToken = 0; // id gracza na którego kartę czekam
+int fazaGry = OCZEKIWANIE_NA_GRACZY;
 
 struct msgbuf{             //mtype = argument wysylanie() + 3
     long mtype;           //typy specjalnego przeznaczenia: 1 - wiadomosci od klientow do serwera
@@ -56,7 +61,8 @@ struct msgbuf wiadomosc;
 
 struct cardStruct talia[KARTY_W_TALII];
 
-struct cardStruct reka[USERS][(KARTY_W_TALII-3)/USERS]; // karty na ręce graczy
+struct cardStruct reka[USERS][(KARTY_W_TALII)/USERS]; // karty na ręce graczy
+struct cardStruct mus[3]; // karty na musie
 
 void wylaczserwer(int esig){
 	msgctl(kolejka,IPC_RMID,NULL);
@@ -119,8 +125,6 @@ void stworzTalie(){
 	talia[22] = createCard(11, "A","T");
 	talia[23] = createCard(11, "A","S");
 
-	shuffle(talia, KARTY_W_TALII);
-
 	for(int i = 0; i< KARTY_W_TALII; i++){
 		printf("%s - %s - %d\n", talia[i].name, talia[i].color, talia[i].value);
 	}
@@ -128,12 +132,15 @@ void stworzTalie(){
 
 
 void init(){
-	memset(zalogowany,0,sizeof(zalogowany[0])*USERS);
+	memset(zalogowany,0, sizeof(zalogowany[0])*USERS);
 	memset(login, 0, sizeof(login[0][0]) * USERS * LOGIN);
 	memset(send, 0, sizeof(send[0]) * WIADOMOSC);
 	memset(get, 0, sizeof(get[0]) * WIADOMOSC);
-	memset(temp_id,0,sizeof(temp_id[0])*WAITING_USERS);
+	memset(temp_id,0, sizeof(temp_id[0])*WAITING_USERS);
 	memset(talia, 0, sizeof(talia[0])*KARTY_W_TALII);
+	memset(reka, 0, sizeof(reka[0][0])*(KARTY_W_TALII-3));
+	memset(mus, 0, sizeof(mus[0])*3);
+
 	kolejka = msgget(KLUCZ, 1000 | IPC_CREAT |IPC_EXCL);
 	if(kolejka == -1){
 		printf("Blad. Jeden serwer jest juz czynny\n");
@@ -186,10 +193,17 @@ void wysylanie(char id){
  void pobieranie(){
  	msgrcv(kolejka, (void *) &wiadomosc, sizeof(wiadomosc.mtext), 1, 1);
  	memcpy(get,wiadomosc.mtext, sizeof(char)*WIADOMOSC_UZYTKOWNIKA);
- 	printf("!%d\n",get[0]);
  	printf("%s\n",get+1);
  }
 
+int kompletGraczy(){
+	int i;
+	for(i=0;i<USERS;i++){
+		if(zalogowany[i]==-1)
+			return 0;
+	}
+	return 1;
+}
 
 /*
  * 0 użytkownik pomyślnie wylogowany
@@ -207,6 +221,49 @@ void wysylanie(char id){
  	}
  	strcpy(send, "Blad. Uzytkownik nie byl zalogowany.");
  	return 1;
+ }
+
+
+ void noweRozdanie(){
+ 	shuffle(talia, KARTY_W_TALII);
+
+ 	// kto w tym rozdaniu jes tna musie?
+ 	musToken = (musToken+1)%USERS;
+ 	
+ 	//kto pierwszy kładzie kartę / licytuje?
+ 	turnToken = musToken;
+
+
+ 	int i; //enumerator idący po kartach w danej kupce.
+ 	int j=0; //enumerator idący po kartach w talii.
+ 	int z=0; //enumerator idący po graczach
+
+ 	//na mus
+ 	for(i=0;i<3;i++){
+ 		mus[i] = talia[j++];
+ 	}
+
+ 	//na reke
+ 	for(i=0;i<(KARTY_W_TALII-3)/USERS;i++){
+ 		for(z=0;z<USERS;z++){
+ 			reka[z][i] = talia[j++];
+ 		}
+ 	}
+
+ 	for(z=0;z<USERS;z++){
+ 		printf("user %s:\n", login[z]);
+ 		for(i=0;i<(KARTY_W_TALII-3)/USERS;i++){
+ 			printf("%s-%s ",reka[z][i].name, reka[z][i].color);
+ 		}
+ 		printf("\n\n");
+ 	}
+
+ 	printf("mus:\n");
+ 	for(i=0;i<3;i++){
+ 		printf("%s-%s ",mus[i].name, mus[i].color);
+ 	}
+ 	printf("\n---------\n");
+ 	printf("Obowiązkowy mus: %s\n",login[musToken]);
  }
 
  /*
@@ -254,9 +311,15 @@ void wysylanie(char id){
 	strcat(send+2, login[freeSlot]);
 
 	printf("%s at userId %d\n", login[freeSlot], freeSlot);
+
+	//jeśli mamy komplet - zaczynamy rozgrywkę
+	if(kompletGraczy()){
+		noweRozdanie();
+		fazaGry = LICYTACJA;
+	}
+
 	return 0;
  }
-
 
 /*
  *Zwraca listę zalogowanych uzytkownikow
@@ -268,7 +331,7 @@ void wysylanie(char id){
  	int i;
  	strcpy(send, "Zalogowani: ");
  	for (i = 0; i < USERS; i++) {
- 		if(zalogowany[i]){
+ 		if(zalogowany[i]!=-1){
  			strcat(send,login[i]);
  			strcat(send," ");
  		}
@@ -327,43 +390,61 @@ void wysylanie(char id){
  	}
  }
 
-
 /**
  * Return 0 jeśli nie musi wysyłać informacji zwrotnej
  * return 1 jeśli musi
  */
  int wykonywanie(){
  	char* converted_get = (char*)(get);
- 	printf("%d \n",get[0]);
  	char rozkaz[6];//rozkaz ma zawsze 6
  	strncpy(rozkaz,converted_get,6);
  	if(!strcmp(rozkaz, "/nuser")){
  		nowyuser();
  		return 0;
  	}
+	memcpy(rozkaz,converted_get+1, 6);
 
- 	memcpy(rozkaz,converted_get+1, 6);
- 	if (!strcmp(rozkaz, "/login")) {
- 		logowanie();
- 		return 1;
- 	} else if (!strcmp(rozkaz, "/lgout")) {
- 		wylogowywanie();
- 		return 1;
- 	}else if (converted_get[0] >= USERS){
- 		strcpy(send,"Blad. Niezalogowano.");
- 		return 1;
- 	} else if (!strcmp(rozkaz, "/ulist")) {
- 		listauzytkownikow();
- 		return 1;
- 	} else if (!strcmp(rozkaz, "/muser")) {
- 		return wiadomoscuser();
- 	} else if (!strcmp(rozkaz, "/msall")) {
- 		wiadomoscwszyscy();
- 		return 0;
- 	}else{
- 		strcpy(send,"Blad. Polecenie niepoprawne.");
- 		return 1;
+	// czy jesteś zalogowany?
+ 	if (strcmp(rozkaz, "/login")){
+ 		int u;
+ 		for(u=0;u<USERS;u++)
+ 		{
+ 			if(zalogowany[u]==converted_get[0]){
+	 			printf("Query from user id:%d\n", u);
+ 				break;
+ 			}
+ 		}
+ 		if(u==USERS){
+	 		strcpy(send,"Blad. Niezalogowano.");
+	 		return 1;
+	 	}
+	}
+
+
+ 	if(fazaGry==OCZEKIWANIE_NA_GRACZY){
+
+	 	if (!strcmp(rozkaz, "/login")) {
+	 		logowanie();
+	 		return 1;
+	 	} else if (!strcmp(rozkaz, "/lgout")) {
+	 		wylogowywanie();
+	 		return 1;
+	 	} else if (!strcmp(rozkaz, "/ulist")) {
+	 		listauzytkownikow();
+	 		return 1;
+	 	}
+	}
+	else if(fazaGry==LICYTACJA){
+		if (!strcmp(rozkaz, "/muser")) {
+	 		return wiadomoscuser();
+	 	} else if (!strcmp(rozkaz, "/msall")) {
+	 		wiadomoscwszyscy();
+	 		return 0;
+	 	}
  	}
+
+ 	strcpy(send,"Blad. Polecenie niepoprawne.");
+ 	return 1;
  }
 
 
