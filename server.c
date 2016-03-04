@@ -46,9 +46,12 @@ char temp_id[WAITING_USERS]; //Tablica tymczasowych identyfiktorów
 
 int kolejka; // id kolejki komunikatów
 
-int currentBet = 0; // aktualny mus - rozmiar
+int aktualnyMus = -1; // idGracza, ktory aktualnie musi ugrac
 int musToken = 0; // id gracza który jest "na musie"
-int turnToken = 0; // id gracza na którego kartę czekam
+int turnToken = 0; // id gracza na którego ruch czekam
+char trumf[4]; // id gracza na którego ruch czekam
+
+
 int fazaGry = OCZEKIWANIE_NA_GRACZY;
 
 struct msgbuf{             //mtype = argument wysylanie() + 3
@@ -69,6 +72,7 @@ struct cardStruct talia[KARTY_W_TALII];
 
 struct cardStruct reka[USERS][10]; // karty na ręce graczy, 10 bo swoje po rozdaniu + mus
 struct cardStruct mus[3]; // karty na musie
+struct cardStruct stol[3]; // karty na stole, index to user
 
 void wylaczserwer(int esig){
 	msgctl(kolejka,IPC_RMID,NULL);
@@ -165,6 +169,7 @@ void init(){
 	memset(talia, 0, sizeof(talia[0])*KARTY_W_TALII);
 	memset(reka, 0, sizeof(reka[0][0])*(KARTY_W_TALII-3));
 	memset(mus, 0, sizeof(mus[0])*3);
+	memset(stol, 0, sizeof(stol[0])*3);
 
 	kolejka = msgget(KLUCZ, 1000 | IPC_CREAT |IPC_EXCL);
 	if(kolejka == -1){
@@ -314,6 +319,7 @@ int kompletGraczy(){
  	printf("Obowiązkowy mus: %s\n",login[musToken]);
 
  	licytacja[musToken] =100;
+ 	strcpy(trumf, "");//czyscimy trumf
 
  	turnToken = musToken+1;
  	char message[WIADOMOSC];
@@ -542,6 +548,19 @@ int iloscKart(struct cardStruct* cards, int size){
 	return c;
 }
 
+
+//return index
+int zwyciezca(){
+	for (int i = 0; i < USERS; ++i)
+	{
+		if(pelnaSuma[i]>=1000){
+			return i;
+		}
+	}
+
+	return -1;
+}
+
 void oddajkarte(){
 	char karta[1];
 	char user[LOGIN];
@@ -571,6 +590,7 @@ void oddajkarte(){
  		wiadomoscwszyscy("Rozdano!");
  		wiadomoscuser("Twój obecny zestaw.",zalogowany[turnToken]);
  		wiadomoscuser(drukujKarty(reka[turnToken],8),zalogowany[turnToken]);
+ 		aktualnyMus = turnToken;
  		fazaGry = OCZEKIWANIE_NA_RZUCENIE_KARTY;
  		char msg[WIADOMOSC];
  		strcpy(msg,"Zaczyna ");
@@ -579,6 +599,148 @@ void oddajkarte(){
  	}
 }
 
+void wezLewe(int ktoKladl){
+	int idMaxKarty = ktoKladl;
+
+	for (int i = 0; i < USERS; ++i)
+	{
+		if(strcmp(stol[idMaxKarty].color, stol[i].color)){//nie jest pod kolor
+			if(!strcmp(trumf,stol[i].color)){ // jest trumf
+				if(strcmp(stol[idMaxKarty].color, stol[i].color) || stol[idMaxKarty].value<stol[i].value){// czy inny kolor lub najwyzszy trumf
+					idMaxKarty = i;
+				}
+			}
+			continue;
+		}
+		else //jest pod kolor
+		{
+			if(stol[idMaxKarty].value<stol[i].value)
+				idMaxKarty = i;
+		}
+	}
+	printf("max karta: %s%s, wartosc %d", stol[idMaxKarty].name,stol[idMaxKarty].color,stol[idMaxKarty].value);
+	int wyn = 0;
+	for (int i = 0; i < USERS; ++i)
+	{
+		wyn += stol[i].value;
+	}
+	suma[idMaxKarty] += wyn;
+	char msg[WIADOMOSC];
+	strcpy(msg, "Lewe wzial ");
+	strcat(msg, login[idMaxKarty]);
+	strcat(msg, ". Uzbierał ");
+	char res_str[4];
+	sprintf(res_str,"%d",wyn);
+	strcat(msg, res_str);
+	wiadomoscwszyscy(msg);
+
+	turnToken = idMaxKarty;
+	strcpy(msg, "Teraz ");
+ 	strcat(msg, login[turnToken]);
+ 	wiadomoscwszyscy(msg);
+
+	memset(stol, 0, sizeof(stol[0])*3);
+
+	for (int i = 0; i < USERS; ++i)
+	{
+		wiadomoscuser(drukujKarty(reka[i],iloscKart(reka[i],8)),zalogowany[i]);
+	}
+}
+
+//return 0 jesli sie udalo zameldowac
+//return 1 jesli sie nie udalo zameldowac
+int melduj(){
+	char karta[1];
+ 	char* converted_get = (char*)(get);
+ 	strncpy(karta, converted_get + 8, 1);
+ 	int karta_int = atoi(karta);
+ 	int meldunekPkt;
+ 	struct cardStruct k = reka[turnToken][karta_int];
+
+ 	if(!strcmp(k.name,"K") || !strcmp(k.name,"Q")){ //czy rzucona to krol albo dama?
+ 		for (int i = 0; i < iloscKart(reka[turnToken],8); ++i)
+ 		{
+ 			if(i==karta_int) continue; //nie liczymy tej którą rzucono
+ 			if((!strcmp(reka[turnToken][i].name,"K") || !strcmp(reka[turnToken][i].name,"Q")) 
+ 			&& !strcmp(reka[turnToken][i].color, k.color)){ // czy mamy odpowiednik w tym kolorze
+
+ 				if(!strcmp(k.color,HEART)) meldunekPkt = 100;
+ 				else if(!strcmp(k.color,DIAMOND)) meldunekPkt = 80;
+ 				else if(!strcmp(k.color,CLUB)) meldunekPkt = 60;
+ 				else if(!strcmp(k.color,SPADE)) meldunekPkt = 40;
+				
+ 				char msg[WIADOMOSC];
+ 				strcpy(msg,login[turnToken]);
+ 				strcat(msg," zameldowal ");
+ 				strcat(msg, k.color);
+ 				strcat(msg," za ");
+ 				char mel_str[4];
+ 				sprintf(mel_str,"%d",meldunekPkt);
+ 				strcat(msg,mel_str);
+				wiadomoscwszyscy(msg);
+
+				suma[turnToken]+=meldunekPkt;
+				strcpy(trumf, k.color);
+
+ 				return 0;
+ 			}
+ 		}
+ 		wiadomoscuser("Nie masz karty do pary", zalogowany[turnToken]);
+ 	}
+ 	else
+ 		wiadomoscuser("Nie mozesz meldowac ta karta", zalogowany[turnToken]);
+
+ 	return 1;
+
+}
+
+void rzuckarte(){
+	char karta[1];
+ 	char* converted_get = (char*)(get);
+ 	strncpy(karta, converted_get + 8, 1);
+ 	int karta_int = atoi(karta);
+ 	
+ 	//kopiuj na stol
+ 	memcpy(stol+turnToken, reka[turnToken]+karta_int,sizeof(reka[turnToken][karta_int]));
+ 	
+ 	//usun z reki
+ 	strcpy(reka[turnToken][karta_int].name,"");
+ 	strcpy(reka[turnToken][karta_int].color,"");
+ 	reka[turnToken][karta_int].value =0;
+
+ 	shortenArray(reka[turnToken],8);
+ 	char msg[WIADOMOSC];
+ 	strcpy(msg,"Gracz ");
+ 	strcat(msg,login[turnToken]);
+ 	strcat(msg," rzucil karte ");
+ 	strcat(msg,stol[turnToken].name);
+ 	strcat(msg,stol[turnToken].color);
+
+ 	turnToken = (turnToken+1)%USERS;//kolejny gracz.
+
+ 	strcat(msg, ". Teraz ");
+ 	strcat(msg,login[turnToken]);
+ 	wiadomoscwszyscy(msg);
+
+ 	////zbieranie lewy
+ 	if(iloscKart(stol,3)==3){
+ 		//skoro juz wszystko polozono, a wyzej przekazalismy token to teraz jest turnToken ma pierwszy gracz
+ 		wezLewe(turnToken);
+ 	}
+
+ 	//// zakonczenie rozdania
+ 	if(iloscKart(reka[turnToken],8)==0){
+
+ 	}
+
+ 	////zakonczenie gry
+ 	if(zwyciezca()!=-1){
+ 		wiadomoscwszyscy("---------------------");
+ 		wiadomoscwszyscy("-----Koniec gry!-----");
+ 		wiadomoscwszyscy("---------------------");
+
+ 	}
+}
 
 /**
  * Return 0 jeśli nie musi wysyłać informacji zwrotnej
@@ -650,8 +812,13 @@ void oddajkarte(){
 			wiadomoscuser("To nie Twoja kolej. Poczekaj!",converted_get[0]);
 			return 0;
 		}
-		else if (!strcmp(rozkaz, "/oddaj")) {
-			oddajkarte();
+		else if (!strcmp(rozkaz, "/karta")) {
+			rzuckarte();
+	 		return 0;
+	 	}
+		else if (!strcmp(rozkaz, "/meldu")) {
+			if(!melduj())
+				rzuckarte();
 	 		return 0;
 	 	}
  	}
