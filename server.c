@@ -37,7 +37,7 @@ FAZY GRY
 
 char zalogowany[USERS]; //jesli uzytkownik nie jest zalogowany 0;  jeśli jest, nr w tablicy to identyfikator użytkownika, a wartosc to nr procesu.
 char login[USERS][LOGIN]; //Przechowuje nazwy użytkowników, nr w tablicy to identyfikator użytkownika
-unsigned int pelnaSuma[USERS]; //Przechowuje punkty użytkownikow z pełnej rozgrywki (do 1000)
+signed int pelnaSuma[USERS]; //Przechowuje punkty użytkownikow z pełnej rozgrywki (do 1000)
 unsigned int suma[USERS]; //Przechowuje punkty użytkownikow z pojedynczej gry
 unsigned int licytacja[USERS]; // Stawki podczas licytacji
 char send[WIADOMOSC]; //Wiadomosc do wyslania
@@ -49,7 +49,7 @@ int kolejka; // id kolejki komunikatów
 int aktualnyMus = -1; // idGracza, ktory aktualnie musi ugrac
 int musToken = 0; // id gracza który jest "na musie"
 int turnToken = 0; // id gracza na którego ruch czekam
-char trumf[4]; // id gracza na którego ruch czekam
+char trumf[5]; // id gracza na którego ruch czekam
 
 
 int fazaGry = OCZEKIWANIE_NA_GRACZY;
@@ -63,7 +63,7 @@ struct msgbuf{             //mtype = argument wysylanie() + 3
 struct cardStruct{
     short value;           	// value: wartość 
     char name[3];     		// nazwa: dla 9, 10, Q, K, A, J
-	char color[4];      	// kolor:
+	char color[5];      	// kolor:
 };
 
 struct msgbuf wiadomosc;
@@ -325,6 +325,8 @@ int kompletGraczy(){
  	char message[WIADOMOSC];
  	strcpy(message,"Rozpoczynamy licytacje. Teraz: ");
  	strcat(message,login[turnToken]);
+	
+	fazaGry = LICYTACJA;
  	wiadomoscwszyscy(message);
  }
 
@@ -377,7 +379,6 @@ int kompletGraczy(){
 	//jeśli mamy komplet - zaczynamy rozgrywkę
 	if(kompletGraczy()){
 		noweRozdanie();
-		fazaGry = LICYTACJA;
 	}
 
 	return 0;
@@ -647,23 +648,21 @@ void wezLewe(int ktoKladl){
 	}
 }
 
-//return 0 jesli sie udalo zameldowac
-//return 1 jesli sie nie udalo zameldowac
-int melduj(){
-	char karta[1];
+//return id karty jesli sie udalo zameldowac
+//return -1 jesli sie nie udalo zameldowac
+signed int melduj(){
+	char karta[2];
  	char* converted_get = (char*)(get);
- 	strncpy(karta, converted_get + 8, 1);
+ 	strncpy(karta, converted_get + 8, 2);
  	int karta_int = atoi(karta);
  	int meldunekPkt;
  	struct cardStruct k = reka[turnToken][karta_int];
-
  	if(!strcmp(k.name,"K") || !strcmp(k.name,"Q")){ //czy rzucona to krol albo dama?
  		for (int i = 0; i < iloscKart(reka[turnToken],8); ++i)
  		{
  			if(i==karta_int) continue; //nie liczymy tej którą rzucono
  			if((!strcmp(reka[turnToken][i].name,"K") || !strcmp(reka[turnToken][i].name,"Q")) 
  			&& !strcmp(reka[turnToken][i].color, k.color)){ // czy mamy odpowiednik w tym kolorze
-
  				if(!strcmp(k.color,HEART)) meldunekPkt = 100;
  				else if(!strcmp(k.color,DIAMOND)) meldunekPkt = 80;
  				else if(!strcmp(k.color,CLUB)) meldunekPkt = 60;
@@ -680,9 +679,9 @@ int melduj(){
 				wiadomoscwszyscy(msg);
 
 				suma[turnToken]+=meldunekPkt;
+				printf("ZAMELDOWANO: %s\n", karta);
 				strcpy(trumf, k.color);
-
- 				return 0;
+ 				return karta_int;
  			}
  		}
  		wiadomoscuser("Nie masz karty do pary", zalogowany[turnToken]);
@@ -690,15 +689,18 @@ int melduj(){
  	else
  		wiadomoscuser("Nie mozesz meldowac ta karta", zalogowany[turnToken]);
 
- 	return 1;
-
+ 	return -1;
 }
 
-void rzuckarte(){
-	char karta[1];
- 	char* converted_get = (char*)(get);
- 	strncpy(karta, converted_get + 8, 1);
- 	int karta_int = atoi(karta);
+void rzuckarte(signed int karta_int){
+ 	printf("RZUCAM: %d\n", karta_int);
+ 	if(karta_int==-1)
+ 		return;
+
+ 	if(karta_int>=iloscKart(reka[turnToken],8)){
+ 		wiadomoscuser("Za wysoki numer karty.", zalogowany[turnToken]);
+ 		return;
+ 	}
  	
  	//kopiuj na stol
  	memcpy(stol+turnToken, reka[turnToken]+karta_int,sizeof(reka[turnToken][karta_int]));
@@ -730,7 +732,48 @@ void rzuckarte(){
 
  	//// zakonczenie rozdania
  	if(iloscKart(reka[turnToken],8)==0){
+		wiadomoscwszyscy("Koniec rozdania");
 
+		//czy ugrano tyle ile sie powinno
+		strcpy(msg,login[aktualnyMus]);
+		if(suma[aktualnyMus]>=licytacja[aktualnyMus]){
+			pelnaSuma[aktualnyMus] += licytacja[aktualnyMus];
+		}
+		else{
+			pelnaSuma[aktualnyMus] -= licytacja[aktualnyMus];
+			strcat(msg," nie");
+		}
+		strcat(msg,"ugral to co musial. ");
+		strcat(msg,"Mialo byc ");
+		char wyn[5];
+		sprintf(wyn,"%d",licytacja[aktualnyMus]);
+		strcat(msg,wyn);
+		strcat(msg,", a bylo ");
+		sprintf(wyn,"%d",suma[aktualnyMus]);
+		strcat(msg,wyn);
+		wiadomoscwszyscy(msg);
+
+		for (int i = 0; i < USERS; ++i)
+		{
+
+			strcpy(msg,login[i]);
+			if(i!=aktualnyMus)
+			{
+				pelnaSuma[i]+=suma[i];
+				strcat(msg," ugral ");
+				sprintf(wyn,"%d",suma[i]);
+				strcat(msg,wyn);
+			}
+			strcat(msg,". Razem ma ");
+			sprintf(wyn,"%d",pelnaSuma[i]);
+			strcat(msg,wyn);
+			wiadomoscwszyscy(msg);
+			suma[i]=0;
+		}
+		
+		if(zwyciezca()==-1){
+			noweRozdanie();
+		}
  	}
 
  	////zakonczenie gry
@@ -738,7 +781,17 @@ void rzuckarte(){
  		wiadomoscwszyscy("---------------------");
  		wiadomoscwszyscy("-----Koniec gry!-----");
  		wiadomoscwszyscy("---------------------");
-
+		for (int i = 0; i < USERS; ++i)
+		{
+ 			char msg[WIADOMOSC];
+			strcpy(msg,login[i]);
+			strcat(msg," razem ma ");
+			char wyn[5];
+			sprintf(wyn,"%d",pelnaSuma[i]);
+			strcat(msg,wyn);
+			wiadomoscwszyscy(msg);
+			suma[i]=0;
+		}
  	}
 }
 
@@ -813,12 +866,15 @@ void rzuckarte(){
 			return 0;
 		}
 		else if (!strcmp(rozkaz, "/karta")) {
-			rzuckarte();
+			char karta[2];
+		 	char* converted_get = (char*)(get);
+		 	strncpy(karta, converted_get + 8, 2);
+		 	int karta_int = atoi(karta);
+			rzuckarte(karta_int);
 	 		return 0;
 	 	}
 		else if (!strcmp(rozkaz, "/meldu")) {
-			if(!melduj())
-				rzuckarte();
+			rzuckarte(melduj());
 	 		return 0;
 	 	}
  	}
