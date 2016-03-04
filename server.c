@@ -651,6 +651,11 @@ void wezLewe(int ktoKladl){
 //return id karty jesli sie udalo zameldowac
 //return -1 jesli sie nie udalo zameldowac
 signed int melduj(){
+	if(iloscKart(stol,3)>0){
+		wiadomoscuser("Meldowac mozna tylko kladac pierwsza karte.", zalogowany[turnToken]);
+		return -1;
+	}
+
 	char karta[2];
  	char* converted_get = (char*)(get);
  	strncpy(karta, converted_get + 8, 2);
