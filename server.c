@@ -50,6 +50,7 @@ int aktualnyMus = -1; // idGracza, ktory aktualnie musi ugrac
 int musToken = 0; // id gracza który jest "na musie"
 int turnToken = 0; // id gracza na którego ruch czekam
 char trumf[5]; // kolor aktualnego trumfu
+char kolor_stolu[5]; // kolor na stole (do ktorego)
 
 
 int fazaGry = OCZEKIWANIE_NA_GRACZY;
@@ -701,6 +702,16 @@ signed int melduj(){
  	return -1;
 }
 
+int maKartePodKolor(int userId, char* kolor){
+	for (int i = 0; i < iloscKart(reka[userId],8); ++i)
+	{
+		if(!strcmp(reka[userId][i].color, kolor)){
+			return 1;
+		}
+	}
+	return 0;
+}
+
 void rzuckarte(signed int karta_int){
  	printf("RZUCAM: %d\n", karta_int);
  	if(karta_int==-1)
@@ -710,7 +721,24 @@ void rzuckarte(signed int karta_int){
  		wiadomoscuser("Za wysoki numer karty.", zalogowany[turnToken]);
  		return;
  	}
- 	
+
+	if(strcmp(kolor_stolu,"")){ // jesli juz ustalono kolor kart na stole, a rzucona nie jest pod kolor
+		if(strcmp(reka[turnToken][karta_int].color,kolor_stolu)){
+			if(maKartePodKolor(turnToken, kolor_stolu)){//sprawdz czy w reku nie ma pod kolor.
+				wiadomoscuser("Masz w reku karte pod kolor! Musisz ja rzucic.", zalogowany[turnToken]);
+
+				return;
+			}
+			printf("Nie jest pod kolor\n");
+		}
+		else{
+			printf("Jest pod kolor\n");
+		}
+	}
+	else{
+		printf("pierwsza karta\n");
+	}
+
  	//kopiuj na stol
  	memcpy(stol+turnToken, reka[turnToken]+karta_int,sizeof(reka[turnToken][karta_int]));
  	
@@ -718,6 +746,10 @@ void rzuckarte(signed int karta_int){
  	strcpy(reka[turnToken][karta_int].name,"");
  	strcpy(reka[turnToken][karta_int].color,"");
  	reka[turnToken][karta_int].value =0;
+
+ 	if(iloscKart(stol,3)==1){
+ 		strcpy(kolor_stolu,stol[turnToken].color);// ustaw aktualny kolor stolu
+ 	}
 
  	shortenArray(reka[turnToken],8);
  	char msg[WIADOMOSC];
