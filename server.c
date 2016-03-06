@@ -633,6 +633,10 @@ void wezLewe(int ktoKladl){
 	char res_str[4];
 	sprintf(res_str,"%d",wyn);
 	strcat(msg, res_str);
+	if(strcmp(trumf,"")){
+		strcat(msg, "\nObecny trumf to ");
+		strcat(msg, trumf);
+	}
 	wiadomoscwszyscy(msg);
 
 	turnToken = idMaxKarty;
