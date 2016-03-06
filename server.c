@@ -49,7 +49,7 @@ int kolejka; // id kolejki komunikatów
 int aktualnyMus = -1; // idGracza, ktory aktualnie musi ugrac
 int musToken = 0; // id gracza który jest "na musie"
 int turnToken = 0; // id gracza na którego ruch czekam
-char trumf[5]; // id gracza na którego ruch czekam
+char trumf[5]; // kolor aktualnego trumfu
 
 
 int fazaGry = OCZEKIWANIE_NA_GRACZY;
@@ -278,9 +278,9 @@ int kompletGraczy(){
  void noweRozdanie(){
  	shuffle(talia, KARTY_W_TALII);
 
- 	// kto w tym rozdaniu jes tna musie?
+ 	// kto w tym rozdaniu jest na musie?
  	musToken = (musToken+1)%USERS;
- 	
+ 	printf("Nowy mus token: %d \n", musToken);
  	//kto pierwszy kładzie kartę / licytuje?
  	turnToken = musToken;
 
@@ -321,7 +321,7 @@ int kompletGraczy(){
  	licytacja[musToken] =100;
  	strcpy(trumf, "");//czyscimy trumf
 
- 	turnToken = musToken+1;
+ 	turnToken = (musToken+1)%USERS;
  	char message[WIADOMOSC];
  	strcpy(message,"Rozpoczynamy licytacje. Teraz: ");
  	strcat(message,login[turnToken]);
