@@ -439,7 +439,12 @@ int maxbet(){
  	if(stawka_int==0){
  		wiadomoscuser("To blad argumentu. To nie jest liczba lub grasz 0.",clientId);
  		return;
- 	}else if(stawka_int<min_stawka){
+ 	}
+ 	else if(stawka_int%10!=0){
+ 		wiadomoscuser("Musisz licytowac wielokrotnosc 10.", clientId);
+ 		return;
+ 	}
+ 	else if(stawka_int<min_stawka){
  		char msg[WIADOMOSC];
 	 	strcpy(msg,"Za malo. Minimalnie daj ");
 	 	char min_stawka_str[3];
