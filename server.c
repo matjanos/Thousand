@@ -619,7 +619,6 @@ void oddajkarte(){
 
 void wezLewe(int ktoKladl){
 	int idMaxKarty = ktoKladl;
-
 	for (int i = 0; i < USERS; ++i)
 	{
 		if(strcmp(stol[idMaxKarty].color, stol[i].color)){//nie jest pod kolor
@@ -662,6 +661,8 @@ void wezLewe(int ktoKladl){
  	strcat(msg, login[turnToken]);
  	wiadomoscwszyscy(msg);
 
+	
+	memset(kolor_stolu, 0, 5);
 	memset(stol, 0, sizeof(stol[0])*3);
 
 	for (int i = 0; i < USERS; ++i)
