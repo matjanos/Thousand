@@ -284,6 +284,7 @@ int kompletGraczy(){
  	printf("Nowy mus token: %d \n", musToken);
  	//kto pierwszy kładzie kartę / licytuje?
  	turnToken = musToken;
+ 	turnToken = (musToken+1)%USERS;
 
 
  	int i; //enumerator idący po kartach w danej kupce.
@@ -319,11 +320,13 @@ int kompletGraczy(){
  	printf("\n---------\n");
  	printf("Obowiązkowy mus: %s\n",login[musToken]);
 
- 	licytacja[musToken] =100;
+
+ 	memset(licytacja, 0,USERS*sizeof(int));
+	licytacja[musToken] = 100;
  	strcpy(trumf, "");//czyscimy trumf
 
- 	turnToken = (musToken+1)%USERS;
  	char message[WIADOMOSC];
+ 	memset(message, 0,WIADOMOSC);
  	strcpy(message,"Rozpoczynamy licytacje. Teraz: ");
  	strcat(message,login[turnToken]);
 	
