@@ -283,7 +283,6 @@ int kompletGraczy(){
  	musToken = (musToken+1)%USERS;
  	printf("Nowy mus token: %d \n", musToken);
  	//kto pierwszy kładzie kartę / licytuje?
- 	turnToken = musToken;
  	turnToken = (musToken+1)%USERS;
 
 
@@ -594,7 +593,7 @@ void oddajkarte(){
  		return;
  	}
 
- 	memcpy(reka[graczId] + 7, reka[turnToken]+karta_int, sizeof(reka[turnToken][karta_int]));
+ 	memcpy(reka[graczId] +7, reka[turnToken]+karta_int, sizeof(reka[turnToken][karta_int]));
 
  	wiadomoscuser("Dostales karte. Twoj obecny zestaw:",zalogowany[graczId]);
  	wiadomoscuser(drukujKarty(reka[graczId],8),zalogowany[graczId]);
@@ -626,7 +625,7 @@ void wezLewe(int ktoKladl){
 	{
 		if(strcmp(stol[idMaxKarty].color, stol[i].color)){//nie jest pod kolor
 			if(!strcmp(trumf,stol[i].color)){ // jest trumf
-				if(strcmp(stol[idMaxKarty].color, stol[i].color) || stol[idMaxKarty].value<stol[i].value){// czy inny kolor lub najwyzszy trumf
+				if(stol[idMaxKarty].value<stol[i].value){// najwyzszy trumf
 					idMaxKarty = i;
 				}
 			}
@@ -878,7 +877,7 @@ void rzuckarte(signed int karta_int){
  	}
 	memcpy(rozkaz,converted_get+1, 6);
 
-	// czy jesteś zalogowany?
+	// czy nie chcesz się zalogować?
  	if (strcmp(rozkaz, "/login")){
  		int u;
  		for(u=0;u<USERS;u++)
