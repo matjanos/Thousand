@@ -346,6 +346,7 @@ int kompletGraczy(){
  */
  int logowanie(){
  	char Login[LOGIN];
+ 	memset(Login,0, LOGIN);
  	char* converted_get = (char*)(get);
  	int clientId = converted_get[0];
  	strncpy(Login, converted_get + 8, LOGIN);
@@ -430,6 +431,7 @@ int maxbet(){
 
  void podbijStawke(){
 	char stawka[3];
+	memset(stawka,0, 3);
  	char* converted_get = (char*)(get);
  	int clientId = converted_get[0];
  	strncpy(stawka, converted_get + 8, 3);
@@ -446,8 +448,10 @@ int maxbet(){
  	}
  	else if(stawka_int<min_stawka){
  		char msg[WIADOMOSC];
+ 		memset(msg,0, WIADOMOSC);
 	 	strcpy(msg,"Za malo. Minimalnie daj ");
 	 	char min_stawka_str[3];
+ 		memset(min_stawka_str,0, 3);
 	 	sprintf(min_stawka_str, "%d", min_stawka);
 	 	strcat(msg,min_stawka_str);
 	 	strcat(msg,". Jak chcesz pasowac to wpisz '/pasuj'");
@@ -457,6 +461,7 @@ int maxbet(){
  	else{
  		licytacja[idGracza(clientId)] = stawka_int;
  		char message[WIADOMOSC];
+ 		memset(message,0, WIADOMOSC);
 	 	strcpy(message,"Gracz ");
 	 	strcat(message,login[turnToken]);
 	 	strcat(message," gra ");
@@ -484,6 +489,7 @@ int maxbet(){
  	licytacja[id] = -1;
  	
  	char message[WIADOMOSC];
+ 	memset(message,0, WIADOMOSC);
  	strcpy(message,"Gracz ");
  	strcat(message,login[turnToken]);
  	strcat(message," pasuje.");
@@ -495,6 +501,7 @@ int maxbet(){
  	{
  		fazaGry = ROZDAWANIE_MUSU;
  		char msg[WIADOMOSC];
+ 		memset(msg,0, WIADOMOSC);
  		strcpy(msg,"Okej! Mus bierze ");
  		strcat(msg, login[turnToken]);
  		strcat(msg," i gra za ");
@@ -569,9 +576,12 @@ int zwyciezca(){
 }
 
 void oddajkarte(){
-	char karta[1];
+	char karta[2];
+	memset(karta, 0, 2);
 	char user[LOGIN];
+ 	memset(user,0, LOGIN);
  	char* converted_get = (char*)(get);
+ 	printf("%s \n", converted_get);
  	strncpy(karta, converted_get + 8, 1);
  	strncpy(user, converted_get + 10, LOGIN);
  	int karta_int = atoi(karta);
@@ -600,6 +610,7 @@ void oddajkarte(){
  		aktualnyMus = turnToken;
  		fazaGry = OCZEKIWANIE_NA_RZUCENIE_KARTY;
  		char msg[WIADOMOSC];
+ 		memset(msg,0, WIADOMOSC);
  		strcpy(msg,"Zaczyna ");
  		strcat(msg,login[turnToken]);
  		wiadomoscwszyscy(msg);
@@ -633,6 +644,7 @@ void wezLewe(int ktoKladl){
 	}
 	suma[idMaxKarty] += wyn;
 	char msg[WIADOMOSC];
+ 	memset(msg,0, WIADOMOSC);
 	strcpy(msg, "Lewe wzial ");
 	strcat(msg, login[idMaxKarty]);
 	strcat(msg, ". Uzbierał ");
@@ -667,6 +679,7 @@ signed int melduj(){
 	}
 
 	char karta[2];
+ 	memset(karta,0, 2);
  	char* converted_get = (char*)(get);
  	strncpy(karta, converted_get + 8, 2);
  	int karta_int = atoi(karta);
@@ -684,11 +697,13 @@ signed int melduj(){
  				else if(!strcmp(k.color,SPADE)) meldunekPkt = 40;
 				
  				char msg[WIADOMOSC];
+ 				memset(msg,0, WIADOMOSC);
  				strcpy(msg,login[turnToken]);
  				strcat(msg," zameldowal ");
  				strcat(msg, k.color);
  				strcat(msg," za ");
  				char mel_str[4];
+ 				memset(mel_str,0, 4);
  				sprintf(mel_str,"%d",meldunekPkt);
  				strcat(msg,mel_str);
 				wiadomoscwszyscy(msg);
@@ -758,6 +773,7 @@ void rzuckarte(signed int karta_int){
 
  	shortenArray(reka[turnToken],8);
  	char msg[WIADOMOSC];
+ 	memset(msg,0, WIADOMOSC);
  	strcpy(msg,"Gracz ");
  	strcat(msg,login[turnToken]);
  	strcat(msg," rzucil karte ");
@@ -792,6 +808,7 @@ void rzuckarte(signed int karta_int){
 		strcat(msg,"ugral to co musial. ");
 		strcat(msg,"Mialo byc ");
 		char wyn[5];
+		memset(wyn,0, 5);
 		sprintf(wyn,"%d",licytacja[aktualnyMus]);
 		strcat(msg,wyn);
 		strcat(msg,", a bylo ");
@@ -830,6 +847,7 @@ void rzuckarte(signed int karta_int){
 		for (int i = 0; i < USERS; ++i)
 		{
  			char msg[WIADOMOSC];
+ 			memset(msg,0, WIADOMOSC);
 			strcpy(msg,login[i]);
 			strcat(msg," razem ma ");
 			char wyn[5];
@@ -848,6 +866,7 @@ void rzuckarte(signed int karta_int){
  int wykonywanie(){
  	char* converted_get = (char*)(get);
  	char rozkaz[6];//rozkaz ma zawsze 6
+ 	memset(rozkaz,0, 6);
  	strncpy(rozkaz,converted_get,6);
  	if(!strcmp(rozkaz, "/nuser")){
  		nowyuser();
@@ -913,6 +932,7 @@ void rzuckarte(signed int karta_int){
 		}
 		else if (!strcmp(rozkaz, "/karta")) {
 			char karta[2];
+ 			memset(karta,0, 2);
 		 	char* converted_get = (char*)(get);
 		 	strncpy(karta, converted_get + 8, 2);
 		 	int karta_int = atoi(karta);
